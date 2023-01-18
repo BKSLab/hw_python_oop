@@ -41,30 +41,44 @@ class Training:
         self.weight = weight
 
     def get_distance(self) -> float:
-        """Рассчитывает дистанцию в км."""
+        """Рассчитывает дистанцию в км.
+
+        Returns:
+            Возвращает дистанцию в км.
+        """
         return self.action * self.LEN_STEP / self.M_IN_KM
 
     def get_mean_speed(self) -> float:
-        """Рассчитывает среднюю скорость движения."""
-        distance = self.get_distance()
-        return distance / self.duration
+        """Рассчитывает среднюю скорость движения в км/ч.
+
+        Returns:
+            Возвращает среднюю скорость движения в км/ч.
+        """
+        return self.get_distance() / self.duration
 
     def get_spent_calories(self) -> float:
-        """Рассчитывает количество затраченных калорий."""
+        """Рассчитывает количество затраченных калорий.
+
+        Returns:
+            Возвращает количество затраченных калорий
+            за тренировку в ккал.
+        Raises:
+            NotImplementedError: исключение вызывается,
+            если метод get_spent_calories()
+            не будет определен в дочерних классах.
+        """
         raise NotImplementedError
 
     def show_training_info(self) -> InfoMessage:
-        """Возвращает информационное сообщение о выполненной тренировке."""
-        distance = self.get_distance()
-        speed = self.get_mean_speed()
-        spent_calories = self.get_spent_calories()
-
+        """Возвращает информационное сообщение
+        о выполненной тренировке.
+        """
         return InfoMessage(
             type(self).__name__,
             self.duration,
-            distance,
-            speed,
-            spent_calories,
+            self.get_distance(),
+            self.get_mean_speed(),
+            self.get_spent_calories(),
         )
 
 
@@ -75,12 +89,15 @@ class Running(Training):
     CALORIES_MEAN_SPEED_SHIFT = 1.79
 
     def get_spent_calories(self) -> float:
-        """Рассчитывает количество затраченных калорий."""
-        speed_running = self.get_mean_speed()
+        """Рассчитывает количество затраченных калорий.
 
+        Returns:
+            Возвращает количество затраченных калорий
+            за тренировку (Running) в ккал.
+        """
         return (
             (
-                self.CALORIES_MEAN_SPEED_MULTIPLIER * speed_running
+                self.CALORIES_MEAN_SPEED_MULTIPLIER * self.get_mean_speed()
                 + self.CALORIES_MEAN_SPEED_SHIFT
             )
             * self.weight
@@ -94,7 +111,7 @@ class SportsWalking(Training):
 
     CALORIES_WEIGHT_MULTIPLIER = 0.035
     CALORIES_SPEED_HEIGHT_MULTIPLIER = 0.029
-    KMH_IN_MSEC = 0.278  # 1000 (м в км) / 3600 (сек. в ч.)
+    KMH_IN_MSEC = 0.278  # 1000 (м в км) / 3600 (сек в ч)
     CM_IN_M = 100
 
     def __init__(
@@ -113,13 +130,16 @@ class SportsWalking(Training):
         self.height = height
 
     def get_spent_calories(self) -> float:
-        """Рассчитывает количество затраченных калорий."""
-        speed_sports_walking = self.get_mean_speed()
+        """Рассчитывает количество затраченных калорий.
 
+        Returns:
+            Возвращает количество затраченных калорий
+            за тренировку (SportsWalking) в ккал.
+        """
         return (
             self.CALORIES_WEIGHT_MULTIPLIER * self.weight
             + (
-                ((speed_sports_walking * self.KMH_IN_MSEC) ** 2)
+                ((self.get_mean_speed() * self.KMH_IN_MSEC) ** 2)
                 / (self.height / self.CM_IN_M)
             )
             * self.CALORIES_SPEED_HEIGHT_MULTIPLIER
@@ -152,21 +172,33 @@ class Swimming(Training):
         self.count_pool = count_pool
 
     def get_distance(self) -> float:
-        """Рассчитывает дистанцию в км."""
+        """Рассчитывает проплытую дистанцию в км.
+
+        Returns:
+            Возвращает проплытую дистанцию за тренировку в км.
+        """
         return self.action * self.LEN_STEP / self.M_IN_KM
 
     def get_mean_speed(self) -> float:
-        """Рассчитывает среднюю скорость движения."""
+        """Рассчитывает среднюю скорость движения в км/ч.
+
+        Returns:
+            Возвращает среднюю скорость движения
+            за тренировку (Swimming) в км/ч.
+        """
         return (
             self.length_pool * self.count_pool / self.M_IN_KM / self.duration
         )
 
     def get_spent_calories(self) -> float:
-        """Рассчитывает количество затраченных калорий."""
-        speed_swimming = self.get_mean_speed()
+        """Рассчитывает количество затраченных калорий.
 
+        Returns:
+            Возвращает количество затраченных калорий
+            за тренировку (Swimming) в ккал.
+        """
         return (
-            (speed_swimming + self.CALORIES_MEAN_SPEED_SHIFT)
+            (self.get_mean_speed() + self.CALORIES_MEAN_SPEED_SHIFT)
             * self.CALORIES_WEIGHT_MULTIPLIER
             * self.weight
             * self.duration
@@ -175,7 +207,9 @@ class Swimming(Training):
 
 def main(training: Training) -> None:
     """Главная функция.
-    Args: training - объект дочерних классов.
+
+    Args:
+        training - объект дочерних классов.
     """
     print(training.show_training_info().get_message())
 
@@ -187,13 +221,21 @@ TRANING_CLASSES = {
 }
 
 
-def read_package(workout_type: str, data: List[str]) -> Training:
+def read_package(workout_type: str, data: List[float]) -> Training:
     """Считывает данные полученные от датчиков.
+
     Args:
         workout_type - вид тренировки.
         data - показатели тренировки.
     """
-    return TRANING_CLASSES[workout_type](*data)
+    try:
+        return TRANING_CLASSES[workout_type](*data)
+    except (TypeError, KeyError) as err:
+        raise SystemExit(
+            f'Ошибка: {type(err).__name__}. '
+            f'Комментарий: введены не верные данные. '
+            f'Тип тренировки: {workout_type}. '
+        )
 
 
 if __name__ == '__main__':
@@ -203,18 +245,11 @@ if __name__ == '__main__':
         ('WLK', [9000, 1, 75, 180]),
     ]
 
-    try:
-        for workout_type, data in packages:
+    for workout_type, data in packages:
+        try:
             main(read_package(workout_type, data))
-    except TypeError:
-        print(
-            f'Неверное количество показателей '
-            f'в тренеровке: {TRANING_CLASSES[workout_type].__name__}. '
-        )
-    except KeyError:
-        print(f'{workout_type} - неизвестная тренеровка')
-    except NotImplementedError:
-        print(
-            f'В классе {TRANING_CLASSES[workout_type].__name__} '
-            f'Метод get_spent_calories() не определен'
-        )
+        except NotImplementedError:
+            raise SystemExit(
+                f'Метод get_spent_calories() в классе '
+                f'{TRANING_CLASSES[workout_type].__name__} не определен'
+            )
